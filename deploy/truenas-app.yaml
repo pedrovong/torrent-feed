@@ -1,7 +1,10 @@
+# TrueNAS "Install via YAML". Auto-updates: GitHub Actions publishes
+# ghcr.io/pedrovong/torrent-feed:latest on every push to main, and watchtower
+# pulls it and recreates the app. See README "Auto-deploy".
 services:
   torrent-feed:
-    image: torrent-feed:latest
-    pull_policy: never          # image was loaded locally; never try to pull it
+    image: ghcr.io/pedrovong/torrent-feed:latest
+    pull_policy: always
     restart: unless-stopped
     user: "568:568"             # TrueNAS "apps" user
     ports:
@@ -9,6 +12,8 @@ services:
     environment:
       API_TOKEN: "REPLACE_WITH_YOUR_TOKEN"
       TZ: "America/New_York"
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
     deploy:
       resources:
         limits:
@@ -18,3 +23,16 @@ services:
           memory: 128M
     volumes:
       - /mnt/POOL/apps/torrent-feed:/data   # replace POOL with your pool name
+
+  watchtower:
+    # Maintained fork; the original containrrr image can't talk to current Docker versions.
+    image: nickfedor/watchtower:latest
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"      # only touch containers labelled above
+      WATCHTOWER_POLL_INTERVAL: "300"      # seconds
+      WATCHTOWER_CLEANUP: "true"           # remove superseded images
+      REPO_USER: "pedrovong"               # GitHub username
+      REPO_PASS: "REPLACE_WITH_GITHUB_TOKEN"   # PAT with read:packages
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

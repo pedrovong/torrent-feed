@@ -5,7 +5,7 @@ Self-hosted PWA + backend for triaging torrent feeds with swipe gestures and sen
 ## Layout
 - `server/` Fastify 5 + TypeScript (ESM, NodeNext, `.js` import suffixes) + better-sqlite3 (FTS5). Entry `src/index.ts`, routes in `src/routes.ts`, ingest/scheduler `src/ingest.ts`, detail-page + image pipeline `src/details.ts` / `src/detailParser.ts`, SSRF-safe fetch `src/safeFetch.ts`, Transmission RPC `src/transmission.ts`, source parsers `src/sources/` (Knaben JSON, RSS/Torznab). Tests: `src/server.test.ts` (vitest).
 - `web/` React 19 + Vite 6 + TanStack Query + vite-plugin-pwa. Hash routing (`src/nav.ts`), swipe gestures via pointer events (`components/SwipeRow.tsx`, `screens/Detail.tsx`), optimistic send/hide + Undo (`src/actions.ts`), design tokens in `src/theme.css`. Config (server URL, token, theme) in localStorage (`src/store.ts`).
-- `Dockerfile` (3-stage, node:22, runs as `node`), `docker-compose.yml`, `deploy/truenas-app.yaml` (TrueNAS "Install via YAML", with resource limits), `deploy/*.tar.gz` (saved image, gitignored).
+- `Dockerfile` (3-stage, node:22, runs as `node`), `docker-compose.yml`, `deploy/truenas-app.yaml` (TrueNAS "Install via YAML": pulls `ghcr.io/pedrovong/torrent-feed:latest` and runs watchtower for auto-updates; image is built by `.github/workflows/docker.yml` on push to main), `deploy/*.tar.gz` (saved image, gitignored).
 
 ## Commands
 - Server dev: `cd server && API_TOKEN=devtoken npm run dev` (port 8080). Tests: `npm test`. Typecheck: `npx tsc --noEmit`.
