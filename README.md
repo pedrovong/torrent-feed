@@ -71,13 +71,9 @@ chown -R 568:568 /mnt/tank/apps/torrent-feed
 
 ### Auto-deploy (GitHub Actions + GHCR + watchtower)
 
-Every push to `main` builds an amd64 image (`.github/workflows/docker.yml`) and publishes `ghcr.io/pedrovong/torrent-feed:latest`. `deploy/truenas-app.yaml` runs that image plus a watchtower container that polls GHCR every 5 minutes and recreates the app when the image changes. Because the package is private:
+Every push to `main` builds an amd64 image (`.github/workflows/docker.yml`) and publishes `ghcr.io/pedrovong/torrent-feed:latest`. `deploy/truenas-app.yaml` runs that image plus a watchtower container that polls GHCR every 5 minutes and recreates the app when the image changes. New commits reach the NAS within about 5 minutes; data in `/data` is untouched by updates.
 
-1. Create a GitHub personal access token (classic) with only the `read:packages` scope.
-2. On the NAS shell, log in once so the first pull works: `docker login ghcr.io -u pedrovong` (paste the token).
-3. Put the same token in `REPO_PASS` in the YAML, set `API_TOKEN` and your pool path, and install the app via YAML.
-
-After the first successful workflow run, new commits reach the NAS within about 5 minutes. Data in `/data` is untouched by updates.
+The GHCR package must be **public** (GitHub → Packages → torrent-feed → Package settings → Change visibility), so no registry login or token is needed. For a private package, run `docker login ghcr.io` as root on the NAS and add `REPO_USER` / `REPO_PASS` (a classic PAT with `read:packages`) to the watchtower service.
 
 **Transmission**: in the app's Settings, set RPC URL to wherever Transmission listens, e.g. `http://<truenas-ip>:9091` (the backend adds `/transmission/rpc`). The backend, not your phone, talks to Transmission, so it only needs to be reachable from the container. If Transmission runs as another TrueNAS app, use the NAS IP and its published port rather than `localhost`. The *Default folder* is a path **as Transmission sees it**.
 

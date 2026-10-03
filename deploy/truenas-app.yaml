@@ -32,7 +32,5 @@ services:
       WATCHTOWER_LABEL_ENABLE: "true"      # only touch containers labelled above
       WATCHTOWER_POLL_INTERVAL: "300"      # seconds
       WATCHTOWER_CLEANUP: "true"           # remove superseded images
-      REPO_USER: "pedrovong"               # GitHub username
-      REPO_PASS: "REPLACE_WITH_GITHUB_TOKEN"   # PAT with read:packages
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

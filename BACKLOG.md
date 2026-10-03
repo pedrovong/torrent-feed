@@ -17,6 +17,7 @@ Log bugs and feature ideas here. Newest first within each section. Move finished
 - Native-style haptics on iOS (not possible in Safari).
 
 ## Done
+- 2026-10-03: Auto-deploy: GitHub Actions builds an amd64 image to GHCR on push to main; watchtower on TrueNAS pulls and redeploys. Confirmed working.
 - 2026-10-03: Replaced the Today category chips with a Sort picker (Newest, Most seeders, Most leechers, Title A–Z); choice is remembered. Server `/items` takes `sort` with stable keyset paging. "By description" was implemented as title A–Z. Awaiting a phone check.
 - 2026-10-03: Added an ascending/descending toggle (↑/↓ button next to the Sort picker); picking a sort resets to its natural direction (title A–Z, others high-to-low). `/items` takes `order=asc|desc`.
 - 2026-10-03: Pull-to-refresh froze halfway on Edge/iOS; replaced with a "Refresh feeds" item in the ⋯ menu that toasts "N new items added" / "No new items" / failure. Confirmed on iPhone.

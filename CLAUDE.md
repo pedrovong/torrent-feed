@@ -13,11 +13,13 @@ Self-hosted PWA + backend for triaging torrent feeds with swipe gestures and sen
 - Image: `docker build -t torrent-feed:latest .` then `docker save torrent-feed:latest | gzip > deploy/torrent-feed-image.tar.gz`.
 - API is under `/api`, bearer token from `API_TOKEN` (or generated into `/data/api-token`).
 
-## Status (as of 2026-10-03)
+## Status (as of 2026-10-03, end of day)
 - Built to full handoff scope: ingest, items API, Transmission send/undo, image caching, Feed, Detail, menu/theme, Settings, Sources + feed editor, Search, PWA, Docker.
 - Verified: 20 unit tests; real Knaben ingest (100 items); Docker image builds, runs as uid 568, healthy, data persists across restart; send/duplicate/undo against a real Transmission 4.1.3 container; user tested locally in browser ("works well").
-- User is deploying to TrueNAS SCALE 25.10.7 as a custom app (image loaded via `docker load` from the tar, YAML from `deploy/truenas-app.yaml`). Transmission runs as another TrueNAS app. Deployment outcome not yet confirmed.
-- Not verified: real phone gestures/PWA install over HTTPS, docker-compose.yml, reverse proxy.
+- Deployed to TrueNAS SCALE 25.10.7 as a custom app from `deploy/truenas-app.yaml`; auto-deploys on push to main (GitHub Actions → public GHCR image → watchtower). Confirmed working. Repo is public.
+- Added since: Refresh feeds menu item (replaced pull-to-refresh, which froze on Edge/iOS), sort picker + asc/desc on Today (category chips removed), iOS width fix. Checked on iPhone 15 Pro in Edge.
+- Not verified: PWA install over HTTPS, docker-compose.yml, reverse proxy.
+- Next up (see BACKLOG.md): detail page 403 (description/images).
 
 ## Known issues and gotchas
 - **Detail pages are bot-protected**: `knaben.xyz/*/description.php` returns 403 (anti-bot challenge) to the server; `1337x.to` timed out from the dev machine. Detail parsers are only unit-tested on sample HTML. The UI shows the failure with Retry; workaround is per-source "Detail page headers" (cookies + UA). Knaben API itself has no description/images/files.
