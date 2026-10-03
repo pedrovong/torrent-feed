@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/dev-dist
+**/.testdata
+data
+.env
+design_handoff_torrent_feed
+.git
+deploy
