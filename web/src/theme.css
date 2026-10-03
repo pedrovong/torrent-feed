@@ -76,6 +76,8 @@ body {
   font: 400 14px/1.4 var(--font);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
+  overflow-x: clip; /* not hidden: that makes body a scroller on iOS */
+  max-width: 100%;
 }
 button,
 input,
@@ -174,6 +176,47 @@ a {
 .chip.on {
   background: var(--accent);
   color: #fff;
+}
+
+/* Sort picker */
+.sort-bar {
+  padding: 0 16px 10px;
+  display: flex;
+  gap: 8px;
+}
+.sort-dir {
+  background: var(--chip);
+  color: var(--fg);
+  border-radius: 999px;
+  width: 34px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.sort-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sub);
+  background: var(--chip);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+.sort-pick select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: 0;
+  outline: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  padding-right: 14px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 7px) 55%, calc(100% - 3px) 55%;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
 }
 
 /* Grouped cards / lists */
@@ -468,13 +511,6 @@ a {
   border-radius: 999px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
-.ptr {
-  text-align: center;
-  color: var(--sub);
-  font-size: 12px;
-  overflow: hidden;
-  transition: height 0.2s;
-}
 
 /* Menu */
 .scrim {
@@ -498,11 +534,13 @@ a {
   transform: translateX(-40px) scale(0.85);
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
 }
 .menu.open {
   transform: none;
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
 }
 .menu-item {
   display: flex;

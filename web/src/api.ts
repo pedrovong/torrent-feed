@@ -57,6 +57,12 @@ export interface Source {
   item_count: number;
   next_due_at: number | null;
 }
+export interface PollResponse {
+  ok: boolean;
+  added: number;
+  results: Array<{ ok: boolean; added: number; seen: number; error?: string }>;
+}
+
 export interface Status {
   version: string;
   next_poll_at: number | null;

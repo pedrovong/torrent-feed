@@ -8,7 +8,15 @@ const ITEMS: Array<{ screen: Screen; label: string }> = [
   { screen: 'settings', label: 'Settings' },
 ];
 
-export function Menu({ open, current, onClose }: { open: boolean; current: Screen; onClose: () => void }) {
+interface MenuProps {
+  open: boolean;
+  current: Screen;
+  onClose: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+}
+
+export function Menu({ open, current, onClose, onRefresh, refreshing }: MenuProps) {
   const { theme } = useConfig();
   const dark = isDark(theme);
 
@@ -32,6 +40,21 @@ export function Menu({ open, current, onClose }: { open: boolean; current: Scree
           </button>
         ))}
         <hr />
+        {onRefresh && (
+          <button
+            role="menuitem"
+            tabIndex={open ? 0 : -1}
+            className="menu-item"
+            disabled={refreshing}
+            onClick={() => {
+              onClose();
+              onRefresh();
+            }}
+          >
+            <span className="dot" />
+            {refreshing ? 'Refreshing…' : 'Refresh feeds'}
+          </button>
+        )}
         <button
           role="menuitem"
           tabIndex={open ? 0 : -1}

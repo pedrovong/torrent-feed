@@ -28,11 +28,25 @@ function ftsQuery(q: string): string | null {
   return tokens?.length ? tokens.map((t) => `"${t}"*`).join(' ') : null;
 }
 
-const encodeCursor = (published: number, id: number) => Buffer.from(`${published}_${id}`).toString('base64url');
-function decodeCursor(c: string): [number, number] {
-  const [p, i] = Buffer.from(c, 'base64url').toString().split('_').map(Number);
-  if (!Number.isFinite(p) || !Number.isFinite(i)) throw new ApiError(400, 'bad_cursor', 'Invalid cursor');
-  return [p, i];
+// Sort keys map to a column, a direction and a tiebreak on id. Cursors carry the last row's
+// sort value so pages stay stable for every ordering (keyset pagination).
+const SORTS = {
+  date: { col: 'i.published_at', dir: 'DESC', field: 'published_at' },
+  seeders: { col: 'i.seeders', dir: 'DESC', field: 'seeders' },
+  leechers: { col: 'i.leechers', dir: 'DESC', field: 'leechers' },
+  title: { col: 'i.title COLLATE NOCASE', dir: 'ASC', field: 'title' },
+} as const;
+type SortKey = keyof typeof SORTS;
+
+const encodeCursor = (value: string | number, id: number) => Buffer.from(JSON.stringify([value, id])).toString('base64url');
+function decodeCursor(c: string): [string | number, number] {
+  try {
+    const [v, i] = JSON.parse(Buffer.from(c, 'base64url').toString());
+    if ((typeof v === 'string' || Number.isFinite(v)) && Number.isInteger(i)) return [v, i];
+  } catch {
+    /* fall through */
+  }
+  throw new ApiError(400, 'bad_cursor', 'Invalid cursor');
 }
 
 const idParam = (v: unknown) => {
@@ -90,6 +104,8 @@ export function registerRoutes(app: FastifyInstance) {
         min_res: z.coerce.number().int().optional(),
         min_seeders: z.coerce.number().int().optional(),
         since_days: z.coerce.number().optional(),
+        sort: z.enum(['date', 'seeders', 'leechers', 'title']).default('date'),
+        order: z.enum(['asc', 'desc']).optional(),
       })
       .parse(req.query);
 
@@ -114,21 +130,26 @@ export function registerRoutes(app: FastifyInstance) {
     const base = `FROM items i JOIN sources s ON s.id = i.source_id ${join} WHERE ${where.join(' AND ')}`;
     const total = (db.prepare(`SELECT COUNT(*) AS n ${base}`).get(...params) as { n: number }).n;
 
+    const sort = { ...SORTS[q.sort as SortKey] } as { col: string; dir: 'ASC' | 'DESC'; field: string };
+    if (q.order) sort.dir = q.order === 'asc' ? 'ASC' : 'DESC';
+    const cmp = sort.dir === 'DESC' ? '<' : '>';
     const pageWhere = [...where];
     const pageParams = [...params];
     if (q.cursor) {
-      const [p, id] = decodeCursor(q.cursor);
-      pageWhere.push('(i.published_at < ? OR (i.published_at = ? AND i.id < ?))');
-      pageParams.push(p, p, id);
+      const [v, id] = decodeCursor(q.cursor);
+      pageWhere.push(`(${sort.col} ${cmp} ? OR (${sort.col} = ? AND i.id ${cmp} ?))`);
+      pageParams.push(v, v, id);
     }
     const rows = db
-      .prepare(`SELECT ${LIST_COLUMNS} FROM items i JOIN sources s ON s.id = i.source_id ${join} WHERE ${pageWhere.join(' AND ')} ORDER BY i.published_at DESC, i.id DESC LIMIT ?`)
+      .prepare(
+        `SELECT ${LIST_COLUMNS} FROM items i JOIN sources s ON s.id = i.source_id ${join} WHERE ${pageWhere.join(' AND ')} ORDER BY ${sort.col} ${sort.dir}, i.id ${sort.dir} LIMIT ?`,
+      )
       .all(...pageParams, q.limit + 1) as any[];
 
     const hasMore = rows.length > q.limit;
     const page = rows.slice(0, q.limit);
     const last = page[page.length - 1];
-    return { items: page.map(listRow), next_cursor: hasMore && last ? encodeCursor(last.published_at, last.id) : null, total };
+    return { items: page.map(listRow), next_cursor: hasMore && last ? encodeCursor(last[sort.field], last.id) : null, total };
   });
 
   app.get('/items/:id', async (req) => {

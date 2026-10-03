@@ -5,15 +5,19 @@ import { useSyncExternalStore } from 'react';
  * so the API token is stored here; serve the app over HTTPS and treat the device as trusted.
  */
 export type ThemePref = 'system' | 'light' | 'dark';
+export type SortOrder = 'asc' | 'desc';
+export type FeedSort = 'date' | 'seeders' | 'leechers' | 'title';
 export interface Config {
   serverUrl: string; // '' = same origin as the web app
   token: string;
   theme: ThemePref;
   recentFolders: string[];
+  feedSort: FeedSort;
+  feedOrder: SortOrder;
 }
 
 const KEY = 'torrent-feed-config';
-const defaults: Config = { serverUrl: '', token: '', theme: 'system', recentFolders: [] };
+const defaults: Config = { serverUrl: '', token: '', theme: 'system', recentFolders: [], feedSort: 'date', feedOrder: 'desc' };
 
 function load(): Config {
   try {

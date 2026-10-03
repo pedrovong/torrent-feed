@@ -1,75 +1,34 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError, itemsQuery, type ItemsPage, type Status } from '../api';
+import { api, ApiError, itemsQuery, type ItemsPage, type PollResponse, type Status } from '../api';
 import { ItemList } from '../components/ItemList';
 import { Menu, MenuButton } from '../components/Menu';
 import { SkeletonRows } from '../components/SwipeRow';
-import { Chips } from '../components/ui';
 import { useToast } from '../components/Toast';
-import { CATEGORIES } from '../lib';
 import { navigate } from '../nav';
+import { updateConfig, useConfig, type FeedSort, type SortOrder } from '../store';
 
-type Cat = (typeof CATEGORIES)[number];
-
-function usePullToRefresh(onRefresh: () => Promise<unknown>) {
-  const [pull, setPull] = useState(0);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    let startY = 0;
-    let active = false;
-    let cur = 0;
-    const ts = (e: TouchEvent) => {
-      if (window.scrollY <= 0 && !busy) {
-        startY = e.touches[0].clientY;
-        active = true;
-      }
-    };
-    const tm = (e: TouchEvent) => {
-      if (!active) return;
-      const dy = e.touches[0].clientY - startY;
-      cur = dy > 0 ? Math.min(80, dy * 0.5) : 0;
-      setPull(cur);
-    };
-    const te = () => {
-      if (!active) return;
-      active = false;
-      const triggered = cur >= 48;
-      cur = 0;
-      setPull(0);
-      if (triggered) {
-        setBusy(true);
-        onRefresh().finally(() => setBusy(false));
-      }
-    };
-    window.addEventListener('touchstart', ts, { passive: true });
-    window.addEventListener('touchmove', tm, { passive: true });
-    window.addEventListener('touchend', te);
-    window.addEventListener('touchcancel', te);
-    return () => {
-      window.removeEventListener('touchstart', ts);
-      window.removeEventListener('touchmove', tm);
-      window.removeEventListener('touchend', te);
-      window.removeEventListener('touchcancel', te);
-    };
-  }, [busy, onRefresh]);
-
-  return { pull, busy };
-}
+const SORT_OPTIONS: Array<{ value: FeedSort; label: string; natural: SortOrder }> = [
+  { value: 'date', label: 'Date', natural: 'desc' },
+  { value: 'seeders', label: 'Seeders', natural: 'desc' },
+  { value: 'leechers', label: 'Leechers', natural: 'desc' },
+  { value: 'title', label: 'Title', natural: 'asc' },
+];
 
 export function Feed() {
-  const [category, setCategory] = useState<Cat>('All');
+  const { feedSort: sort, feedOrder: order } = useConfig();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [polling, setPolling] = useState(false);
   const [baseline, setBaseline] = useState<number | null>(null);
   const qc = useQueryClient();
   const toast = useToast();
 
   const feed = useInfiniteQuery({
-    queryKey: ['items', 'feed', category],
+    queryKey: ['items', 'feed', sort, order],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam, signal }) =>
       api<ItemsPage>(
-        itemsQuery({ state: 'new,sent', category: category === 'All' ? undefined : category, since_days: 7, limit: 50, cursor: pageParam }),
+        itemsQuery({ state: 'new,sent', sort, order, since_days: 7, limit: 50, cursor: pageParam }),
         { signal },
       ),
     getNextPageParam: (p) => p.next_cursor ?? undefined,
@@ -92,14 +51,24 @@ export function Feed() {
     setBaseline(s.newest_created_at ?? 0);
   }, [feed, qc]);
 
-  const { pull, busy } = usePullToRefresh(refresh);
-
+  // Poll every source now, reload the list, and tell the user what happened.
   const pollNow = async () => {
+    if (polling) return;
+    setPolling(true);
     try {
-      await api('/ingest/poll', { method: 'POST' });
+      const r = await api<PollResponse>('/ingest/poll', { method: 'POST' });
       await refresh();
+      const failed = r.results.filter((x) => !x.ok);
+      if (r.results.length === 0) toast.show('No enabled feeds to refresh');
+      else if (failed.length === r.results.length) toast.show(`Refresh failed: ${failed[0].error ?? 'unknown error'}`);
+      else {
+        const msg = r.added > 0 ? `${r.added} new item${r.added === 1 ? '' : 's'} added` : 'No new items';
+        toast.show(failed.length ? `${msg} (${failed.length} feed${failed.length === 1 ? '' : 's'} failed)` : msg);
+      }
     } catch (e) {
       toast.show((e as Error).message);
+    } finally {
+      setPolling(false);
     }
   };
 
@@ -113,12 +82,29 @@ export function Feed() {
         <h1 className="title feed">Today</h1>
         <MenuButton onClick={() => setMenuOpen(true)} />
       </div>
-      <Menu open={menuOpen} current="feed" onClose={() => setMenuOpen(false)} />
+      <Menu open={menuOpen} current="feed" onClose={() => setMenuOpen(false)} onRefresh={() => void pollNow()} refreshing={polling} />
 
-      <Chips options={CATEGORIES} value={category} onChange={setCategory} />
-
-      <div className="ptr" style={{ height: busy ? 32 : pull }}>
-        {busy ? 'Refreshing…' : pull >= 48 ? 'Release to refresh' : pull > 0 ? 'Pull to refresh' : ''}
+      <div className="sort-bar">
+        <label className="sort-pick">
+          <span>Sort</span>
+          <select value={sort} onChange={(e) => {
+              const next = SORT_OPTIONS.find((o) => o.value === e.target.value)!;
+              updateConfig({ feedSort: next.value, feedOrder: next.natural });
+            }} aria-label="Sort feed">
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          className="sort-dir"
+          onClick={() => updateConfig({ feedOrder: order === 'asc' ? 'desc' : 'asc' })}
+          aria-label={order === 'asc' ? 'Ascending, tap for descending' : 'Descending, tap for ascending'}
+        >
+          {order === 'asc' ? '↑' : '↓'}
+        </button>
       </div>
 
       {newCount > 0 && (
